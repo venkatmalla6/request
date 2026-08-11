@@ -18,8 +18,10 @@ export function IntroScene({ onOpen }) {
   }, []);
 
   const handleFormed = useCallback(() => {
-    // Show button after "Sweety" text is fully formed
-    setShowButton(true);
+    // Wait a moment after "Sweety" is fully formed before showing the button
+    setTimeout(() => {
+      setShowButton(true);
+    }, 1500);
   }, []);
 
   return (
