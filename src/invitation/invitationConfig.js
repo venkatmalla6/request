@@ -54,8 +54,8 @@ export const invitationConfig = {
     notePlaceholder: 'Any special requests? (optional)',
     submitLabel: "Confirm ✓",
     submittingLabel: "Sending...",
-    successHeading: "It's a date. 🎉",
-    successBody: "I'll be there. Thank you for saying yes.",
+    successHeading: "Waiting to see you. ❤️",
+    successBody: "Thank you for giving this a chance. It means everything to me.",
   },
 
   // MAYBE / NO flow

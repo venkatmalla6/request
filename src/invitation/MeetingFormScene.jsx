@@ -99,7 +99,7 @@ export function MeetingFormScene({ onConfirmed }) {
         {showFW && <FireworksEffect onDone={() => setShowFW(false)} />}
         <div className="inv-scene inv-scene--form" aria-label="Meeting confirmed">
           <div className="inv-form-card inv-form-card--success inv-form-card--visible">
-            <div className="inv-success-icon" aria-hidden="true">🎉</div>
+            <div className="inv-success-icon" aria-hidden="true">❤️</div>
 
             <h1 className="inv-form-heading inv-form-heading--success">
               {meetingForm.successHeading}

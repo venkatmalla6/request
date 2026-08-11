@@ -308,8 +308,8 @@ export function InvitationCard({ onYes, onMaybe }) {
   const handleYes = useCallback(() => {
     setRainActive(false);
     setShowFireworks(true);
-    // Immediately navigate — fireworks play as overlay during transition
-    setTimeout(() => { onYes(); }, 800);
+    // Play fireworks for 5 seconds before going to the form
+    setTimeout(() => { onYes(); }, 5000);
   }, [onYes]);
 
   const currentStep = noCount > 0

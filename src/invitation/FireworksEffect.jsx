@@ -42,18 +42,15 @@ export function FireworksEffect({ onDone }) {
         this.x = x; this.y = y;
         this.color = color;
         const angle = Math.random() * Math.PI * 2;
-        const speed = Math.random() * 7 + 1;
+        const speed = Math.random() * 5 + 1;
         this.vx = Math.cos(angle) * speed;
         this.vy = Math.sin(angle) * speed - 1;
         this.alpha = 1;
-        this.decay = Math.random() * 0.018 + 0.008;
-        this.radius = Math.random() * 3 + 1;
-        this.gravity = 0.12;
-        this.trail = [];
+        this.decay = Math.random() * 0.02 + 0.01;
+        this.radius = Math.random() * 2 + 1;
+        this.gravity = 0.1;
       }
       update() {
-        this.trail.push({ x: this.x, y: this.y, alpha: this.alpha });
-        if (this.trail.length > 5) this.trail.shift();
         this.vx *= 0.98;
         this.vy += this.gravity;
         this.x += this.vx;
@@ -61,22 +58,10 @@ export function FireworksEffect({ onDone }) {
         this.alpha -= this.decay;
       }
       draw(ctx) {
-        // Trail
-        this.trail.forEach((pt, i) => {
-          const t = i / this.trail.length;
-          ctx.beginPath();
-          ctx.arc(pt.x * dpr, pt.y * dpr, this.radius * dpr * t * 0.6, 0, Math.PI * 2);
-          ctx.fillStyle = this.color;
-          ctx.globalAlpha = pt.alpha * t * 0.4;
-          ctx.fill();
-        });
-        // Head
         ctx.beginPath();
         ctx.arc(this.x * dpr, this.y * dpr, this.radius * dpr, 0, Math.PI * 2);
         ctx.fillStyle = this.color;
         ctx.globalAlpha = Math.max(0, this.alpha);
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 10 * dpr;
         ctx.fill();
       }
       isDead() { return this.alpha <= 0; }
@@ -89,16 +74,13 @@ export function FireworksEffect({ onDone }) {
         this.y = H + 10;
         this.targetY = H * (0.1 + Math.random() * 0.45);
         this.color = randomColor();
-        this.speed = H * 0.012 + Math.random() * H * 0.006;
+        this.speed = H * 0.015 + Math.random() * H * 0.008;
         this.exploded = false;
         this.delay = delay;
         this.delayLeft = delay;
-        this.trail = [];
       }
       update(particles) {
         if (this.delayLeft > 0) { this.delayLeft--; return; }
-        this.trail.push({ x: this.x, y: this.y });
-        if (this.trail.length > 8) this.trail.shift();
         this.y -= this.speed;
         if (this.y <= this.targetY && !this.exploded) {
           this.exploded = true;
@@ -106,54 +88,44 @@ export function FireworksEffect({ onDone }) {
         }
       }
       burst(particles) {
-        const count = 90 + Math.floor(Math.random() * 60);
+        const count = 30 + Math.floor(Math.random() * 20);
         for (let i = 0; i < count; i++) {
           particles.push(new Particle(this.x, this.y, randomColor()));
         }
         // Ring burst
-        const ring = 24;
+        const ring = 12;
         for (let i = 0; i < ring; i++) {
           const angle = (i / ring) * Math.PI * 2;
           const p = new Particle(this.x, this.y, '#ffffff');
-          p.vx = Math.cos(angle) * 10;
-          p.vy = Math.sin(angle) * 10;
-          p.decay = 0.03;
-          p.radius = 2;
+          p.vx = Math.cos(angle) * 7;
+          p.vy = Math.sin(angle) * 7;
+          p.decay = 0.04;
+          p.radius = 1.5;
           particles.push(p);
         }
       }
       draw(ctx) {
         if (this.exploded || this.delayLeft > 0) return;
-        this.trail.forEach((pt, i) => {
-          const t = i / this.trail.length;
-          ctx.beginPath();
-          ctx.arc(pt.x * dpr, pt.y * dpr, 2 * dpr * t, 0, Math.PI * 2);
-          ctx.fillStyle = this.color;
-          ctx.globalAlpha = t * 0.6;
-          ctx.fill();
-        });
         ctx.beginPath();
-        ctx.arc(this.x * dpr, this.y * dpr, 3 * dpr, 0, Math.PI * 2);
+        ctx.arc(this.x * dpr, this.y * dpr, 2 * dpr, 0, Math.PI * 2);
         ctx.fillStyle = '#ffffff';
         ctx.globalAlpha = 1;
-        ctx.shadowColor = this.color;
-        ctx.shadowBlur = 12 * dpr;
         ctx.fill();
       }
       isDone() { return this.exploded; }
     }
 
     // Launch rockets in waves
-    const LAUNCHES = [0, 8, 18, 30, 44, 58, 72, 88, 104, 120];
+    const LAUNCHES = [0, 8, 16, 26, 36, 48, 60, 75, 90, 110];
     LAUNCHES.forEach((delay, i) => {
-      const count = i < 3 ? 1 : 2;
+      const count = i < 4 ? 1 : 2;
       for (let j = 0; j < count; j++) {
-        rocketsRef.current.push(new Rocket(delay + j * 6));
+        rocketsRef.current.push(new Rocket(delay + j * 5));
       }
     });
 
     let startTime = null;
-    const DURATION = 4500; // ms
+    const DURATION = 5000; // ms
 
     const draw = (ts) => {
       if (!startTime) startTime = ts;
