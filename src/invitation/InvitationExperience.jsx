@@ -35,6 +35,11 @@ export function InvitationExperience() {
     }
   };
 
+  // Try to play immediately when they enter the website
+  useEffect(() => {
+    playAudioSync();
+  }, []);
+
   // Ensure audio plays when user interacts if they haven't muted it
   const handleUserInteraction = () => {
     playAudioSync();
@@ -79,7 +84,7 @@ export function InvitationExperience() {
       onClick={handleUserInteraction} // Catch any click on the background to start audio
     >
       {/* Background Audio */}
-      <audio ref={audioRef} src={bgmFile} loop />
+      <audio ref={audioRef} src={bgmFile} autoPlay loop />
 
       {/* Sound toggle — always visible in top-right */}
       <SoundToggle
