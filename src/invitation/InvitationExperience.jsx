@@ -18,8 +18,34 @@ import './invitation.css';
  */
 export function InvitationExperience() {
   const [scene, setScene] = useState(SCENES.INTRO);
-  const [soundEnabled, setSoundEnabled] = useState(false);
+  // Default to true as requested, though browsers may block it until the first interaction
+  const [soundEnabled, setSoundEnabled] = useState(true);
   const [reduceMotion, setReduceMotion] = useState(false);
+  const audioRef = React.useRef(null);
+
+  // Handle audio play/pause based on soundEnabled state
+  useEffect(() => {
+    if (audioRef.current) {
+      if (soundEnabled) {
+        audioRef.current.muted = false;
+        // Attempt to play. Note: Browsers block autoplay unmuted without user interaction.
+        // It will automatically start playing on the first user click if blocked.
+        audioRef.current.play().catch((err) => {
+          console.log("Autoplay blocked until user interaction:", err);
+        });
+      } else {
+        audioRef.current.pause();
+      }
+    }
+  }, [soundEnabled]);
+
+  // Ensure audio plays when user interacts if they haven't muted it
+  const handleUserInteraction = () => {
+    if (soundEnabled && audioRef.current && audioRef.current.paused) {
+      audioRef.current.muted = false;
+      audioRef.current.play().catch(() => {});
+    }
+  };
 
   // Detect prefers-reduced-motion
   useEffect(() => {
@@ -30,14 +56,21 @@ export function InvitationExperience() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const go = (nextScene) => setScene(nextScene);
+  const go = (nextScene) => {
+    handleUserInteraction();
+    setScene(nextScene);
+  };
 
   return (
     <div
       className="inv-root"
       style={{ '--inv-bg': '#050609' }}
       aria-label="Invitation experience"
+      onClick={handleUserInteraction} // Catch any click on the background to start audio
     >
+      {/* Background Audio */}
+      <audio ref={audioRef} src="/bgm.mp3" loop />
+
       {/* Sound toggle — always visible in top-right */}
       <SoundToggle
         enabled={soundEnabled}
