@@ -9,14 +9,14 @@ createRoot(document.getElementById('root')).render(
   <StrictMode>
     <BrowserRouter>
       <Routes>
-        {/* Existing Heart Text Animator */}
-        <Route path="/" element={<App />} />
+        {/* Cinematic Invitation Experience is now the default root */}
+        <Route path="/" element={<InvitationExperience />} />
 
-        {/* Cinematic Invitation Experience */}
-        <Route path="/invitation" element={<InvitationExperience />} />
+        {/* Existing Heart Text Animator moved to /animator */}
+        <Route path="/animator" element={<App />} />
 
-        {/* Fallback to main app */}
-        <Route path="*" element={<App />} />
+        {/* Fallback to invitation */}
+        <Route path="*" element={<InvitationExperience />} />
       </Routes>
     </BrowserRouter>
   </StrictMode>,

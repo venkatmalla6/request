@@ -45,7 +45,7 @@ export function InvitationExperience() {
       />
 
       {/* Back link to main app (top-left, subtle) */}
-      <a href="/" className="inv-back-link" aria-label="Back to Heart Text Animator">
+      <a href="/animator" className="inv-back-link" aria-label="Back to Heart Text Animator">
         ← Animator
       </a>
 
