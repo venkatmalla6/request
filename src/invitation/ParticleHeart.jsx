@@ -70,8 +70,19 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
       offC.width = intW;
       offC.height = intH;
       
-      // Draw text
-      const fontSize = Math.min(intW * 0.25, intH * 0.25, 120);
+      // Draw text - dynamically scale to fit width
+      let fontSize = 100; // reference size
+      offCtx.font = `bold ${fontSize}px "Dancing Script", cursive`;
+      const metrics = offCtx.measureText(text);
+      const textWidth = metrics.width || (text.length * fontSize * 0.5); 
+      
+      // Target 85% of screen width (capped at 800px wide for massive screens)
+      const targetWidth = Math.min(intW * 0.85, 800);
+      fontSize = (targetWidth / textWidth) * fontSize;
+      
+      // Ensure height doesn't break out of screen
+      fontSize = Math.min(fontSize, intH * 0.4);
+
       offCtx.font = `bold ${fontSize}px "Dancing Script", cursive`;
       offCtx.textAlign = 'center';
       offCtx.textBaseline = 'middle';
