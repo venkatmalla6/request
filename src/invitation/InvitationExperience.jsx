@@ -18,7 +18,7 @@ import './invitation.css';
  *                                                ↘ (NO/MAYBE) ──────────► RESPECTFUL_END
  */
 export function InvitationExperience() {
-  const [scene, setScene] = useState(SCENES.INTRO);
+  const [scene, setScene] = useState(SCENES.START);
   const audioRef = React.useRef(null);
   // Default to true, but we must start playback synchronously on interaction
   const [soundEnabled, setSoundEnabled] = useState(true);
@@ -35,10 +35,12 @@ export function InvitationExperience() {
     }
   };
 
-  // Try to play immediately when they enter the website
+  // Try to play immediately when they enter the website (might be blocked)
   useEffect(() => {
-    playAudioSync();
-  }, []);
+    if (scene !== SCENES.START) {
+      playAudioSync();
+    }
+  }, [scene]);
 
   // Ensure audio plays when user interacts if they haven't muted it
   const handleUserInteraction = () => {
@@ -76,6 +78,11 @@ export function InvitationExperience() {
     setScene(nextScene);
   };
 
+  const handleStart = () => {
+    handleUserInteraction();
+    go(SCENES.INTRO);
+  };
+
   return (
     <div
       className="inv-root"
@@ -89,13 +96,26 @@ export function InvitationExperience() {
       {/* Sound toggle — always visible in top-right */}
       <SoundToggle
         enabled={soundEnabled}
-        onToggle={() => setSoundEnabled((p) => !p)}
+        onToggle={toggleSound}
       />
 
       {/* Back link to main app (top-left, subtle) */}
       <a href="/animator" className="inv-back-link" aria-label="Back to Heart Text Animator">
         ← Animator
       </a>
+
+      {/* Scene: START OVERLAY (Requires user interaction to start audio) */}
+      <SceneTransition active={scene === SCENES.START}>
+        <div className="inv-scene" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <button 
+            className="inv-btn inv-btn--primary inv-btn--glow" 
+            onClick={handleStart}
+            style={{ padding: '1.5rem 3rem', fontSize: '1.2rem' }}
+          >
+            Tap to Begin
+          </button>
+        </div>
+      </SceneTransition>
 
       {/* Scene: INTRO */}
       <SceneTransition active={scene === SCENES.INTRO}>
