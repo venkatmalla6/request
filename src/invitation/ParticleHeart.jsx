@@ -62,6 +62,7 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
 
     // 2. Generate Text Targets using offscreen canvas
     const textTargets = [];
+    let fontSize = 0;
     if (text) {
       const intW = Math.floor(w);
       const intH = Math.floor(h);
@@ -71,7 +72,7 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
       offC.height = intH;
       
       // Draw text - dynamically scale to fit width
-      let fontSize = 100; // reference size
+      fontSize = 100; // reference size
       offCtx.font = `bold ${fontSize}px "Dancing Script", cursive`;
       const metrics = offCtx.measureText(text);
       const textWidth = metrics.width || (text.length * fontSize * 0.5); 
@@ -154,6 +155,7 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
       morphProgress: 0,
       phase1StartTime: 0,
       notified: false,
+      textFontSize: text ? fontSize : 0,
       SCALE,
       w,
       h,
@@ -257,12 +259,19 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
         if (phase === 2) {
           stateRef.current.morphProgress = Math.min(1, stateRef.current.morphProgress + 0.008);
           
+          // Draw faint text background to guarantee readability
+          if (text) {
+             ctx.font = `bold ${stateRef.current.textFontSize}px "Dancing Script", cursive`;
+             ctx.textAlign = 'center';
+             ctx.textBaseline = 'middle';
+             ctx.fillStyle = hexToRgba('#ffb6c1', 0.15 * stateRef.current.morphProgress); // Fade in faint text
+             ctx.fillText(text, w / 2, h / 2);
+          }
+
           particles.forEach((p) => {
-            // Speed up morphing by using a stronger lerp
             p.x = lerp(p.x, p.tx, 0.04);
             p.y = lerp(p.y, p.ty, 0.04);
             
-            // Text color gradient
             ctx.beginPath();
             ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
             ctx.fillStyle = hexToRgba('#ffffff', 0.85);
@@ -282,8 +291,16 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
 
         // === PHASE 3: Hold Text ===
         if (phase === 3) {
+          // Draw faint text background to guarantee readability
+          if (text) {
+             ctx.font = `bold ${stateRef.current.textFontSize}px "Dancing Script", cursive`;
+             ctx.textAlign = 'center';
+             ctx.textBaseline = 'middle';
+             ctx.fillStyle = hexToRgba('#ffb6c1', 0.15); // Constant faint text
+             ctx.fillText(text, w / 2, h / 2);
+          }
+
           particles.forEach((p) => {
-            // Gentle floating for text
             const oscillateX = Math.sin(time * 1.5 + p.phaseOffset) * 0.4;
             const oscillateY = Math.cos(time * 1.2 + p.phaseOffset) * 0.4;
             const px = p.tx + oscillateX;
