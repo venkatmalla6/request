@@ -106,8 +106,11 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
       console.log("[ParticleHeart] Found text points:", validPoints.length);
       // Map particles to valid text points (wrap around if not enough points)
       if (validPoints.length > 0) {
-        // Shuffle valid points for a random look
-        validPoints.sort(() => Math.random() - 0.5);
+        // Proper Fisher-Yates shuffle for perfectly even distribution
+        for (let i = validPoints.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [validPoints[i], validPoints[j]] = [validPoints[j], validPoints[i]];
+        }
         for (let i = 0; i < PARTICLE_COUNT; i++) {
           const pt = validPoints[i % validPoints.length];
           // Very slight scatter for sharpness
@@ -166,10 +169,14 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    // Load font before measuring if possible (hacky wait for document.fonts)
-    document.fonts?.ready.then(() => {
+    // Force the specific font to load so we don't measure the fallback font
+    if (document.fonts && document.fonts.load) {
+      document.fonts.load('bold 100px "Dancing Script"').then(() => {
+        start();
+      }).catch(() => start());
+    } else {
       start();
-    }).catch(() => start());
+    }
 
     let W, H;
     const dpr = window.devicePixelRatio || 1;
