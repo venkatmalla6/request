@@ -19,32 +19,41 @@ import './invitation.css';
  */
 export function InvitationExperience() {
   const [scene, setScene] = useState(SCENES.INTRO);
-  // Default to true as requested, though browsers may block it until the first interaction
+  const audioRef = React.useRef(null);
+  // Default to true, but we must start playback synchronously on interaction
   const [soundEnabled, setSoundEnabled] = useState(true);
   const [reduceMotion, setReduceMotion] = useState(false);
-  const audioRef = React.useRef(null);
 
-  // Handle audio play/pause based on soundEnabled state
-  useEffect(() => {
-    if (audioRef.current) {
-      if (soundEnabled) {
-        audioRef.current.muted = false;
-        // Attempt to play. Note: Browsers block autoplay unmuted without user interaction.
-        // It will automatically start playing on the first user click if blocked.
-        audioRef.current.play().catch((err) => {
-          console.log("Autoplay blocked until user interaction:", err);
-        });
-      } else {
-        audioRef.current.pause();
+  // Synchronously play audio if enabled
+  const playAudioSync = () => {
+    if (audioRef.current && soundEnabled) {
+      audioRef.current.muted = false;
+      const playPromise = audioRef.current.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((e) => console.log("Audio play prevented:", e));
       }
     }
-  }, [soundEnabled]);
+  };
 
   // Ensure audio plays when user interacts if they haven't muted it
   const handleUserInteraction = () => {
-    if (soundEnabled && audioRef.current && audioRef.current.paused) {
-      audioRef.current.muted = false;
-      audioRef.current.play().catch(() => {});
+    playAudioSync();
+  };
+
+  // Handle explicit toggle from the sound button
+  const toggleSound = () => {
+    const newState = !soundEnabled;
+    setSoundEnabled(newState);
+    if (audioRef.current) {
+      if (newState) {
+        audioRef.current.muted = false;
+        const playPromise = audioRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise.catch((e) => console.log("Audio play prevented:", e));
+        }
+      } else {
+        audioRef.current.pause();
+      }
     }
   };
 
