@@ -2,19 +2,10 @@ import React, { useRef, useEffect, useCallback } from 'react';
 
 /**
  * ParticleHeart — animates particles forming a mathematically generated
- * heart curve using requestAnimationFrame on an HTML5 Canvas.
- *
- * Phases:
- *  0: assembling (particles move to heart positions)
- *  1: formed (particles gently oscillate + outline travelers)
- *
- * Performance:
- *  - devicePixelRatio aware
- *  - particle count adapts to screen size
- *  - cleanup on unmount
+ * heart curve, and then morphs them into a text string ("Sweety").
  */
 
-// Heart parametric formula (same as existing HeartCanvas but normalized)
+// Heart parametric formula
 function heartPoint(t) {
   const x = 16 * Math.pow(Math.sin(t), 3);
   const y = -(13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t));
@@ -29,49 +20,114 @@ function easeOutCubic(t) {
   return 1 - Math.pow(1 - t, 3);
 }
 
-export function ParticleHeart({ onFormed, color = '#ffb6c1', reduceMotion = false }) {
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', reduceMotion = false }) {
   const canvasRef = useRef(null);
   const animRef = useRef(null);
-  // Store onFormed in a ref so calling it never triggers effect restart
   const onFormedRef = useRef(onFormed);
   useEffect(() => { onFormedRef.current = onFormed; }, [onFormed]);
 
   const stateRef = useRef({
-    phase: 0,           // 0 = assembling, 1 = formed
+    phase: 0,           // 0: assemble heart, 1: hold heart, 2: morph to text, 3: hold text
     particles: [],
     travelers: [],
-    assembleProgress: 0, // 0 → 1
-    formedNotified: false,
+    assembleProgress: 0,
+    morphProgress: 0,
+    phase1StartTime: 0,
+    notified: false,
   });
 
   const initParticles = useCallback((canvas, w, h) => {
-    const SCALE = Math.min(w, h) * 0.026; // heart scale relative to canvas
-    const PARTICLE_COUNT = reduceMotion ? 60 : Math.min(120, Math.floor((w * h) / 5000));
+    const SCALE = Math.min(w, h) * 0.026;
+    
+    // We need a decent number of particles to make text legible
+    const PARTICLE_COUNT = reduceMotion ? 150 : Math.min(450, Math.floor((w * h) / 2000));
 
-    // Pre-compute target positions along the heart curve
-    const targets = [];
+    // 1. Generate Heart Targets
+    const heartTargets = [];
     for (let i = 0; i < PARTICLE_COUNT; i++) {
       const t = (i / PARTICLE_COUNT) * 2 * Math.PI;
       const pt = heartPoint(t);
-      targets.push({
+      heartTargets.push({
         x: w / 2 + pt.x * SCALE,
         y: h / 2 + pt.y * SCALE,
       });
     }
 
-    // Each particle starts randomly scattered near the center
-    const particles = targets.map((target, i) => ({
-      x: w / 2 + (Math.random() - 0.5) * w * 0.4,
-      y: h / 2 + (Math.random() - 0.5) * h * 0.4,
-      tx: target.x,
-      ty: target.y,
-      size: Math.random() * 2.2 + 1.2,
-      opacity: 0,
-      phaseOffset: Math.random() * Math.PI * 2, // for oscillation
-      speed: 0.018 + Math.random() * 0.012,
-    }));
+    // 2. Generate Text Targets using offscreen canvas
+    const textTargets = [];
+    if (text) {
+      const intW = Math.floor(w);
+      const intH = Math.floor(h);
+      const offC = document.createElement('canvas');
+      const offCtx = offC.getContext('2d', { willReadFrequently: true });
+      offC.width = intW;
+      offC.height = intH;
+      
+      // Draw text
+      const fontSize = Math.min(intW * 0.25, intH * 0.25, 120);
+      offCtx.font = `bold ${fontSize}px "Dancing Script", cursive`;
+      offCtx.textAlign = 'center';
+      offCtx.textBaseline = 'middle';
+      offCtx.fillStyle = '#ffffff';
+      offCtx.fillText(text, intW / 2, intH / 2);
 
-    // Traveler particles (outline glow dots)
+      // Extract pixels
+      const imgData = offCtx.getImageData(0, 0, intW, intH).data;
+      const validPoints = [];
+      // Sample every 4th pixel for speed
+      for (let y = 0; y < intH; y += 4) {
+        for (let x = 0; x < intW; x += 4) {
+          const alpha = imgData[(y * intW + x) * 4 + 3];
+          if (alpha > 128) {
+            validPoints.push({ x, y });
+          }
+        }
+      }
+
+      // Map particles to valid text points (wrap around if not enough points)
+      console.log("[ParticleHeart] Found text points:", validPoints.length);
+      if (validPoints.length > 0) {
+        // Shuffle valid points for a random look
+        validPoints.sort(() => Math.random() - 0.5);
+        for (let i = 0; i < PARTICLE_COUNT; i++) {
+          const pt = validPoints[i % validPoints.length];
+          // Add slight scatter to text points to make it look like glowing dust
+          textTargets.push({
+            x: pt.x + (Math.random() - 0.5) * 4,
+            y: pt.y + (Math.random() - 0.5) * 4,
+          });
+        }
+      } else {
+        // Fallback if text measuring fails
+        for (let i = 0; i < PARTICLE_COUNT; i++) textTargets.push(heartTargets[i]);
+      }
+    }
+
+    // 3. Initialize Particles
+    const particles = [];
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
+      particles.push({
+        x: w / 2 + (Math.random() - 0.5) * w * 0.4,
+        y: h / 2 + (Math.random() - 0.5) * h * 0.4,
+        hx: heartTargets[i].x,  // heart x
+        hy: heartTargets[i].y,  // heart y
+        tx: textTargets.length > 0 ? textTargets[i].x : heartTargets[i].x, // text x
+        ty: textTargets.length > 0 ? textTargets[i].y : heartTargets[i].y, // text y
+        size: Math.random() * 2.2 + 1.2,
+        opacity: 0,
+        phaseOffset: Math.random() * Math.PI * 2,
+        speed: 0.015 + Math.random() * 0.01,
+      });
+    }
+
+    // Traveler particles (outline glow dots for the heart phase)
     const TRAVELER_COUNT = reduceMotion ? 0 : 4;
     const travelers = Array.from({ length: TRAVELER_COUNT }, (_, i) => ({
       t: (i / TRAVELER_COUNT) * 2 * Math.PI,
@@ -84,126 +140,164 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', reduceMotion = fals
       particles,
       travelers,
       assembleProgress: 0,
-      formedNotified: false,
+      morphProgress: 0,
+      phase1StartTime: 0,
+      notified: false,
       SCALE,
       w,
       h,
     };
-  }, [reduceMotion]);
+  }, [reduceMotion, text]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    // Load font before measuring if possible (hacky wait for document.fonts)
+    document.fonts?.ready.then(() => {
+      start();
+    }).catch(() => start());
+
     let W, H;
+    const dpr = window.devicePixelRatio || 1;
+    let resizeListener;
 
-    const resize = () => {
-      const rect = canvas.parentElement.getBoundingClientRect();
-      W = rect.width || window.innerWidth;
-      H = rect.height || window.innerHeight;
-      canvas.width = Math.floor(W * dpr);
-      canvas.height = Math.floor(H * dpr);
-      canvas.style.width = `${W}px`;
-      canvas.style.height = `${H}px`;
-      initParticles(canvas, W, H);
-    };
+    function start() {
+      const resize = () => {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        W = rect.width || window.innerWidth;
+        H = rect.height || window.innerHeight;
+        canvas.width = Math.floor(W * dpr);
+        canvas.height = Math.floor(H * dpr);
+        canvas.style.width = `${W}px`;
+        canvas.style.height = `${H}px`;
+        initParticles(canvas, W, H);
+      };
 
-    resize();
-    window.addEventListener('resize', resize);
+      resize();
+      window.addEventListener('resize', resize);
+      resizeListener = resize;
 
-    const ctx = canvas.getContext('2d');
+      const ctx = canvas.getContext('2d');
 
-    const draw = (timestamp) => {
-      const { phase, particles, travelers, SCALE, w, h } = stateRef.current;
-      ctx.save();
-      ctx.scale(dpr, dpr);
-      ctx.clearRect(0, 0, w, h);
+      const draw = (timestamp) => {
+        const { phase, particles, travelers, SCALE, w, h } = stateRef.current;
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
 
-      // === PHASE 0: Assembling ===
-      if (phase === 0) {
-        stateRef.current.assembleProgress = Math.min(
-          1,
-          stateRef.current.assembleProgress + 0.004
-        );
-        const prog = easeOutCubic(stateRef.current.assembleProgress);
-
-        particles.forEach((p) => {
-          p.x = lerp(p.x, p.tx, p.speed);
-          p.y = lerp(p.y, p.ty, p.speed);
-          p.opacity = Math.min(1, p.opacity + 0.015);
-
-          ctx.beginPath();
-          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-          ctx.fillStyle = hexToRgba(color, p.opacity * prog);
-          ctx.shadowColor = color;
-          ctx.shadowBlur = 8;
-          ctx.fill();
-        });
-
-        if (stateRef.current.assembleProgress >= 1 && !stateRef.current.formedNotified) {
-          stateRef.current.phase = 1;
-          stateRef.current.formedNotified = true;
-          // Use ref so calling callback never restarts the effect
-          if (onFormedRef.current) setTimeout(() => onFormedRef.current?.(), 600);
-        }
-      }
-
-      // === PHASE 1: Formed — oscillate + travelers ===
-      if (phase === 1) {
         const time = timestamp * 0.001;
 
-        // Draw glow background halo
-        const gradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, SCALE * 18);
-        gradient.addColorStop(0, hexToRgba(color, 0.06));
-        gradient.addColorStop(1, hexToRgba(color, 0));
-        ctx.fillStyle = gradient;
-        ctx.fillRect(0, 0, w, h);
+        // === PHASE 0: Assembling Heart ===
+        if (phase === 0) {
+          stateRef.current.assembleProgress = Math.min(1, stateRef.current.assembleProgress + 0.004);
+          const prog = easeOutCubic(stateRef.current.assembleProgress);
 
-        // Draw particles with oscillation
-        particles.forEach((p) => {
-          const oscillateX = Math.sin(time * 1.2 + p.phaseOffset) * 1.5;
-          const oscillateY = Math.cos(time * 0.9 + p.phaseOffset) * 1.2;
-          const px = p.tx + oscillateX;
-          const py = p.ty + oscillateY;
-
-          ctx.beginPath();
-          ctx.arc(px, py, p.size, 0, Math.PI * 2);
-          ctx.fillStyle = hexToRgba(color, 0.85);
-          ctx.shadowColor = color;
-          ctx.shadowBlur = 10;
-          ctx.fill();
-        });
-
-        // Draw traveler particles along heart outline
-        if (!reduceMotion) {
-          travelers.forEach((tr) => {
-            tr.t += tr.speed;
-            const pt = heartPoint(tr.t);
-            const tx = w / 2 + pt.x * SCALE;
-            const ty = h / 2 + pt.y * SCALE;
+          particles.forEach((p) => {
+            p.x = lerp(p.x, p.hx, p.speed);
+            p.y = lerp(p.y, p.hy, p.speed);
+            p.opacity = Math.min(1, p.opacity + 0.015);
 
             ctx.beginPath();
-            ctx.arc(tx, ty, tr.size, 0, Math.PI * 2);
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = hexToRgba(color, p.opacity * prog);
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 8;
+            ctx.fill();
+          });
+
+          if (stateRef.current.assembleProgress >= 1) {
+            stateRef.current.phase = 1;
+            stateRef.current.phase1StartTime = timestamp;
+          }
+        }
+
+        // === PHASE 1: Hold Heart ===
+        if (phase === 1) {
+          drawHalo(ctx, w, h, SCALE, color);
+          
+          particles.forEach((p) => {
+            const oscillateX = Math.sin(time * 1.2 + p.phaseOffset) * 1.5;
+            const oscillateY = Math.cos(time * 0.9 + p.phaseOffset) * 1.2;
+            const px = p.hx + oscillateX;
+            const py = p.hy + oscillateY;
+
+            // Keep current position updated so it doesn't snap on morph
+            p.x = px;
+            p.y = py;
+
+            ctx.beginPath();
+            ctx.arc(px, py, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = hexToRgba(color, 0.85);
+            ctx.shadowColor = color;
+            ctx.shadowBlur = 10;
+            ctx.fill();
+          });
+
+          drawTravelers(ctx, travelers, w, h, SCALE, reduceMotion);
+
+          // Hold heart for 2 seconds, then morph
+          if (timestamp - stateRef.current.phase1StartTime > 2000) {
+            stateRef.current.phase = 2;
+          }
+        }
+
+        // === PHASE 2: Morph to Text ===
+        if (phase === 2) {
+          stateRef.current.morphProgress = Math.min(1, stateRef.current.morphProgress + 0.008);
+          
+          particles.forEach((p) => {
+            // Speed up morphing by using a stronger lerp
+            p.x = lerp(p.x, p.tx, 0.04);
+            p.y = lerp(p.y, p.ty, 0.04);
+            
+            // Text color gradient
+            ctx.beginPath();
+            ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+            ctx.fillStyle = hexToRgba('#ffffff', 0.85);
+            ctx.shadowColor = '#ffb6c1';
+            ctx.shadowBlur = 10;
+            ctx.fill();
+          });
+
+          if (stateRef.current.morphProgress >= 1) {
+            stateRef.current.phase = 3;
+            if (!stateRef.current.notified && onFormedRef.current) {
+              stateRef.current.notified = true;
+              onFormedRef.current();
+            }
+          }
+        }
+
+        // === PHASE 3: Hold Text ===
+        if (phase === 3) {
+          particles.forEach((p) => {
+            // Gentle floating for text
+            const oscillateX = Math.sin(time * 1.5 + p.phaseOffset) * 1.0;
+            const oscillateY = Math.cos(time * 1.2 + p.phaseOffset) * 1.0;
+            const px = p.tx + oscillateX;
+            const py = p.ty + oscillateY;
+
+            ctx.beginPath();
+            ctx.arc(px, py, p.size, 0, Math.PI * 2);
             ctx.fillStyle = hexToRgba('#ffffff', 0.9);
-            ctx.shadowColor = '#ffffff';
-            ctx.shadowBlur = 16;
+            ctx.shadowColor = '#ffb6c1';
+            ctx.shadowBlur = 12;
             ctx.fill();
           });
         }
-      }
 
-      ctx.restore();
+        ctx.restore();
+        animRef.current = requestAnimationFrame(draw);
+      };
+
       animRef.current = requestAnimationFrame(draw);
-    };
-
-    animRef.current = requestAnimationFrame(draw);
+    }
 
     return () => {
-      window.removeEventListener('resize', resize);
+      if (resizeListener) window.removeEventListener('resize', resizeListener);
       if (animRef.current) cancelAnimationFrame(animRef.current);
     };
-  // onFormed intentionally excluded — it lives in onFormedRef
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [color, initParticles, reduceMotion]);
 
@@ -223,9 +317,27 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', reduceMotion = fals
   );
 }
 
-function hexToRgba(hex, alpha) {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return `rgba(${r},${g},${b},${alpha})`;
+function drawHalo(ctx, w, h, SCALE, color) {
+  const gradient = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, SCALE * 18);
+  gradient.addColorStop(0, hexToRgba(color, 0.06));
+  gradient.addColorStop(1, hexToRgba(color, 0));
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, w, h);
+}
+
+function drawTravelers(ctx, travelers, w, h, SCALE, reduceMotion) {
+  if (reduceMotion) return;
+  travelers.forEach((tr) => {
+    tr.t += tr.speed;
+    const pt = heartPoint(tr.t);
+    const tx = w / 2 + pt.x * SCALE;
+    const ty = h / 2 + pt.y * SCALE;
+
+    ctx.beginPath();
+    ctx.arc(tx, ty, tr.size, 0, Math.PI * 2);
+    ctx.fillStyle = hexToRgba('#ffffff', 0.9);
+    ctx.shadowColor = '#ffffff';
+    ctx.shadowBlur = 16;
+    ctx.fill();
+  });
 }

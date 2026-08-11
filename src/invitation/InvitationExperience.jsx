@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { SCENES } from './scenes.js';
 import { SceneTransition } from './SceneTransition.jsx';
 import { IntroScene } from './IntroScene.jsx';
-import { HeartScene } from './HeartScene.jsx';
 import { MessageScene } from './MessageScene.jsx';
 import { InvitationCard } from './InvitationCard.jsx';
 import { MeetingFormScene } from './MeetingFormScene.jsx';
@@ -14,8 +13,8 @@ import './invitation.css';
  * InvitationExperience — the root component for the /invitation route.
  *
  * Scene flow:
- *   INTRO → HEART → MESSAGE → INVITATION ──(YES)──► MEETING_FORM → CONFIRMATION
- *                                         ↘ (NO/MAYBE) ──────────► RESPECTFUL_END
+ *   INTRO (Heart->Sweety) → MESSAGE → INVITATION ──(YES)──► MEETING_FORM → CONFIRMATION
+ *                                                ↘ (NO/MAYBE) ──────────► RESPECTFUL_END
  */
 export function InvitationExperience() {
   const [scene, setScene] = useState(SCENES.INTRO);
@@ -52,15 +51,7 @@ export function InvitationExperience() {
 
       {/* Scene: INTRO */}
       <SceneTransition active={scene === SCENES.INTRO}>
-        <IntroScene onOpen={() => go(SCENES.HEART)} />
-      </SceneTransition>
-
-      {/* Scene: HEART */}
-      <SceneTransition active={scene === SCENES.HEART}>
-        <HeartScene
-          onContinue={() => go(SCENES.MESSAGE)}
-          reduceMotion={reduceMotion}
-        />
+        <IntroScene onOpen={() => go(SCENES.MESSAGE)} />
       </SceneTransition>
 
       {/* Scene: MESSAGE */}
