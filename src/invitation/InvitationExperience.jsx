@@ -7,6 +7,7 @@ import { InvitationCard } from './InvitationCard.jsx';
 import { MeetingFormScene } from './MeetingFormScene.jsx';
 import { ResponseScene } from './ResponseScene.jsx';
 import { SoundToggle } from './SoundToggle.jsx';
+import bgmFile from '../assets/bgm.mp3';
 import './invitation.css';
 
 /**
@@ -69,7 +70,7 @@ export function InvitationExperience() {
       onClick={handleUserInteraction} // Catch any click on the background to start audio
     >
       {/* Background Audio */}
-      <audio ref={audioRef} src="/bgm.mp3" loop />
+      <audio ref={audioRef} src={bgmFile} loop />
 
       {/* Sound toggle — always visible in top-right */}
       <SoundToggle
