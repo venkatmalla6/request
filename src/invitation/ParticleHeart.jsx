@@ -46,8 +46,8 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
   const initParticles = useCallback((canvas, w, h) => {
     const SCALE = Math.min(w, h) * 0.026;
     
-    // We need a decent number of particles to make text legible
-    const PARTICLE_COUNT = reduceMotion ? 150 : Math.min(450, Math.floor((w * h) / 2000));
+    // Increase particle count significantly to make text denser and clearer
+    const PARTICLE_COUNT = reduceMotion ? 300 : Math.min(900, Math.floor((w * h) / 1000));
 
     // 1. Generate Heart Targets
     const heartTargets = [];
@@ -76,12 +76,12 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
       const metrics = offCtx.measureText(text);
       const textWidth = metrics.width || (text.length * fontSize * 0.5); 
       
-      // Target 85% of screen width (capped at 800px wide for massive screens)
-      const targetWidth = Math.min(intW * 0.85, 800);
+      // Target 75% of screen width (a bit smaller so it's sharper)
+      const targetWidth = Math.min(intW * 0.75, 700);
       fontSize = (targetWidth / textWidth) * fontSize;
       
       // Ensure height doesn't break out of screen
-      fontSize = Math.min(fontSize, intH * 0.4);
+      fontSize = Math.min(fontSize, intH * 0.35);
 
       offCtx.font = `bold ${fontSize}px "Dancing Script", cursive`;
       offCtx.textAlign = 'center';
@@ -92,9 +92,9 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
       // Extract pixels
       const imgData = offCtx.getImageData(0, 0, intW, intH).data;
       const validPoints = [];
-      // Sample every 4th pixel for speed
-      for (let y = 0; y < intH; y += 4) {
-        for (let x = 0; x < intW; x += 4) {
+      // Sample every 2nd pixel for higher resolution text mapping
+      for (let y = 0; y < intH; y += 2) {
+        for (let x = 0; x < intW; x += 2) {
           const alpha = imgData[(y * intW + x) * 4 + 3];
           if (alpha > 128) {
             validPoints.push({ x, y });
@@ -102,17 +102,17 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
         }
       }
 
-      // Map particles to valid text points (wrap around if not enough points)
       console.log("[ParticleHeart] Found text points:", validPoints.length);
+      // Map particles to valid text points (wrap around if not enough points)
       if (validPoints.length > 0) {
         // Shuffle valid points for a random look
         validPoints.sort(() => Math.random() - 0.5);
         for (let i = 0; i < PARTICLE_COUNT; i++) {
           const pt = validPoints[i % validPoints.length];
-          // Add slight scatter to text points to make it look like glowing dust
+          // Very slight scatter for sharpness
           textTargets.push({
-            x: pt.x + (Math.random() - 0.5) * 4,
-            y: pt.y + (Math.random() - 0.5) * 4,
+            x: pt.x + (Math.random() - 0.5) * 1.5,
+            y: pt.y + (Math.random() - 0.5) * 1.5,
           });
         }
       } else {
@@ -284,8 +284,8 @@ export function ParticleHeart({ onFormed, color = '#ffb6c1', text = 'Sweety', re
         if (phase === 3) {
           particles.forEach((p) => {
             // Gentle floating for text
-            const oscillateX = Math.sin(time * 1.5 + p.phaseOffset) * 1.0;
-            const oscillateY = Math.cos(time * 1.2 + p.phaseOffset) * 1.0;
+            const oscillateX = Math.sin(time * 1.5 + p.phaseOffset) * 0.4;
+            const oscillateY = Math.cos(time * 1.2 + p.phaseOffset) * 0.4;
             const px = p.tx + oscillateX;
             const py = p.ty + oscillateY;
 
